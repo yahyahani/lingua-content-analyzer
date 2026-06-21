@@ -239,6 +239,13 @@
     border-color: var(--terracotta);
     transform: translateX(-2px);
   }
+  .card-clickable {
+    cursor: pointer;
+  }
+  .card-clickable:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px;
+  }
   .card-status {
     font-family: var(--font-mono);
     font-size: 11px;
@@ -413,6 +420,7 @@
       const cls = statusClass(job.status);
       const label = STATUS_LABELS[job.status] || job.status;
       const title = job.video_title || job.youtube_url;
+      const clickable = job.status === 'done';
 
       let body;
       if (job.status === 'failed') {
@@ -429,8 +437,12 @@
         body = `<div class="card-summary">قيد المعالجة...</div>`;
       }
 
+      const cardAttrs = clickable
+        ? `class="card card-clickable" onclick="window.location.href='detail.html?job_id=${encodeURIComponent(job.job_id)}'" tabindex="0" role="button"`
+        : `class="card"`;
+
       return `
-        <div class="card">
+        <div ${cardAttrs}>
           <div class="card-status ${cls}">${label}</div>
           <div>
             <div class="card-title">${escapeHtml(title)}</div>
@@ -535,6 +547,13 @@
 
   document.getElementById('urlInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') startAnalysis();
+  });
+
+  // Toegankelijkheid: Enter-toets op een gefocuste card werkt net als een klik
+  document.getElementById('historyGrid').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.classList.contains('card-clickable')) {
+      e.target.click();
+    }
   });
 
   // Geschiedenis laden bij het openen van de pagina

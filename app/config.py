@@ -2,11 +2,13 @@
 Centrale configuratie voor de applicatie.
 Alle instellingen kunnen via een .env bestand overschreven worden.
 """
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env")
+
     # Map waar gedownloade audio en transcripten tijdelijk opgeslagen worden
     storage_dir: Path = Path("storage")
 
@@ -18,9 +20,6 @@ class Settings(BaseSettings):
     # Ollama instellingen
     ollama_model: str = "qwen2.5:7b"
     ollama_host: str = "http://localhost:11434"
-
-    class Config:
-        env_file = ".env"
 
 
 settings = Settings()

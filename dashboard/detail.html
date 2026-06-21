@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تفاصيل التحليل — محلل المحتوى</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Tajawal:wght@300;400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --parchment: #F3ECDD;
+    --parchment-deep: #E8DCC0;
+    --ink: #2B231A;
+    --ink-soft: #5A4F40;
+    --terracotta: #B5552E;
+    --terracotta-deep: #8C3F20;
+    --gold: #A6802E;
+    --line: #D4C5A3;
+    --green-status: #4A6B4D;
+    --red-status: #A33B2C;
+
+    --font-display: 'Amiri', serif;
+    --font-body: 'Tajawal', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--parchment);
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(166,128,46,0.06), transparent 40%),
+      radial-gradient(circle at 90% 80%, rgba(181,85,46,0.05), transparent 40%);
+    color: var(--ink);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  .ornament-border {
+    position: fixed;
+    inset: 12px;
+    border: 1.5px solid var(--line);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .ornament-border::before,
+  .ornament-border::after {
+    content: '';
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border: 1.5px solid var(--gold);
+  }
+  .ornament-border::before { top: -1.5px; right: -1.5px; border-left: none; border-bottom: none; }
+  .ornament-border::after { bottom: -1.5px; left: -1.5px; border-right: none; border-top: none; }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 56px 40px 80px;
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink-soft);
+    text-decoration: none;
+    margin-bottom: 32px;
+    transition: color 0.2s ease;
+  }
+  .back-link:hover { color: var(--terracotta-deep); }
+  .back-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+
+  .status-pill {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 5px 14px;
+    border: 1px solid currentColor;
+    border-radius: 100px;
+    margin-bottom: 18px;
+  }
+  .status-pill.done { color: var(--green-status); }
+  .status-pill.failed { color: var(--red-status); }
+  .status-pill.processing { color: var(--terracotta); }
+
+  h1.video-title {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    line-height: 1.4;
+  }
+
+  .video-url {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    direction: ltr;
+    text-align: left;
+    margin-bottom: 36px;
+    word-break: break-all;
+  }
+  .video-url a { color: var(--terracotta-deep); text-decoration: none; }
+  .video-url a:hover { text-decoration: underline; }
+
+  .block {
+    background: var(--parchment-deep);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 32px;
+    margin-bottom: 28px;
+  }
+  .block-title {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .block-title .rule {
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
+  .summary-text {
+    font-size: 15px;
+    line-height: 1.9;
+    color: var(--ink);
+  }
+
+  .keypoints-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .keypoint-item {
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+    font-size: 14.5px;
+  }
+  .keypoint-item::before {
+    content: '◆';
+    font-size: 8px;
+    color: var(--terracotta);
+    flex-shrink: 0;
+  }
+
+  .transcript-text {
+    font-size: 14.5px;
+    line-height: 2;
+    color: var(--ink-soft);
+    white-space: pre-wrap;
+    max-height: 520px;
+    overflow-y: auto;
+    padding-left: 8px;
+  }
+  .transcript-text::-webkit-scrollbar { width: 6px; }
+  .transcript-text::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+
+  .copy-btn {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .copy-btn:hover { border-color: var(--terracotta); color: var(--terracotta-deep); }
+  .copy-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  .loading-state, .error-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--ink-soft);
+    font-family: var(--font-display);
+    font-size: 18px;
+  }
+  .error-state { color: var(--red-status); }
+
+  @media (max-width: 720px) {
+    .wrap { padding: 32px 20px 60px; }
+    .block { padding: 22px; }
+    h1.video-title { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="ornament-border"></div>
+<div class="wrap">
+
+  <a href="index.html" class="back-link">← العودة إلى لوحة التحكم</a>
+
+  <div id="content">
+    <div class="loading-state">جاري تحميل التفاصيل...</div>
+  </div>
+
+</div>
+
+<script>
+  const API_BASE = 'http://localhost:8000';
+
+  const STATUS_LABELS = {
+    pending: 'في الانتظار',
+    downloading: 'جاري التحميل',
+    transcribing: 'جاري التفريغ',
+    summarizing: 'جاري التلخيص',
+    done: 'مكتمل',
+    failed: 'فشل',
+  };
+
+  function statusClass(status) {
+    if (status === 'done') return 'done';
+    if (status === 'failed') return 'failed';
+    return 'processing';
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function getJobIdFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('job_id');
+  }
+
+  function copyTranscript() {
+    const text = document.getElementById('transcriptText').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copyBtn');
+      const original = btn.textContent;
+      btn.textContent = 'تم النسخ ✓';
+      setTimeout(() => { btn.textContent = original; }, 2000);
+    });
+  }
+
+  function renderContent(job) {
+    const content = document.getElementById('content');
+    const cls = statusClass(job.status);
+    const label = STATUS_LABELS[job.status] || job.status;
+    const title = job.video_title || 'بلا عنوان';
+
+    let body = `
+      <div class="status-pill ${cls}">${label}</div>
+      <h1 class="video-title">${escapeHtml(title)}</h1>
+      <span class="video-url"><a href="${escapeHtml(job.youtube_url)}" target="_blank" rel="noopener">${escapeHtml(job.youtube_url)}</a></span>
+    `;
+
+    if (job.status === 'failed') {
+      body += `
+        <div class="block">
+          <div class="block-title">حدث خطأ<div class="rule"></div></div>
+          <div class="summary-text" style="color: var(--red-status);">${escapeHtml(job.error || 'حدث خطأ غير متوقع أثناء المعالجة.')}</div>
+        </div>
+      `;
+    } else if (job.status !== 'done') {
+      body += `
+        <div class="block">
+          <div class="summary-text">هذا التحليل قيد المعالجة. يرجى العودة بعد قليل.</div>
+        </div>
+      `;
+    } else {
+      const keypointsHtml = (job.key_points || [])
+        .map(p => `<div class="keypoint-item">${escapeHtml(p)}</div>`)
+        .join('');
+
+      body += `
+        <div class="block">
+          <div class="block-title">الملخص<div class="rule"></div></div>
+          <div class="summary-text">${escapeHtml(job.summary || '')}</div>
+          ${keypointsHtml ? `<div class="keypoints-list">${keypointsHtml}</div>` : ''}
+        </div>
+
+        <div class="block">
+          <div class="block-title">
+            النص الكامل
+            <div class="rule"></div>
+            <button class="copy-btn" id="copyBtn" onclick="copyTranscript()">نسخ النص</button>
+          </div>
+          <div class="transcript-text" id="transcriptText">${escapeHtml(job.transcript || 'لا يوجد نص متاح.')}</div>
+        </div>
+      `;
+    }
+
+    content.innerHTML = body;
+  }
+
+  async function loadJobDetail() {
+    const jobId = getJobIdFromUrl();
+    const content = document.getElementById('content');
+
+    if (!jobId) {
+      content.innerHTML = '<div class="error-state">لم يتم تحديد أي تحليل. يرجى العودة إلى لوحة التحكم.</div>';
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/result/${jobId}`);
+
+      if (res.status === 404) {
+        content.innerHTML = '<div class="error-state">لم يتم العثور على هذا التحليل.</div>';
+        return;
+      }
+
+      if (res.status === 409) {
+        // Job bestaat maar is nog niet klaar; haal status op om dat netjes te tonen
+        const statusRes = await fetch(`${API_BASE}/status/${jobId}`);
+        const statusData = await statusRes.json();
+        renderContent({
+          status: statusData.status,
+          youtube_url: '',
+          video_title: null,
+        });
+        return;
+      }
+
+      if (!res.ok) throw new Error('Onbekende fout');
+
+      const job = await res.json();
+      renderContent(job);
+    } catch (err) {
+      content.innerHTML = '<div class="error-state">لا يمكن الاتصال بالخادم. تأكد أن الخادم يعمل على المنفذ 8000.</div>';
+    }
+  }
+
+  loadJobDetail();
+</script>
+</body>
+</html>

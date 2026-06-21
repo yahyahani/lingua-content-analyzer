@@ -1,7 +1,7 @@
 """
 Data modellen voor requests, responses en interne job-state.
 """
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, Field
 from enum import Enum
 from typing import Optional
 from datetime import datetime
@@ -35,10 +35,12 @@ class StatusResponse(BaseModel):
 class ResultResponse(BaseModel):
     job_id: str
     status: JobStatus
+    youtube_url: str
     video_title: Optional[str] = None
     transcript: Optional[str] = None
     summary: Optional[str] = None
     key_points: Optional[list[str]] = None
+    created_at: datetime
 
 
 class Job(BaseModel):
@@ -53,4 +55,4 @@ class Job(BaseModel):
     key_points: Optional[list[str]] = None
     error: Optional[str] = None
     progress_message: Optional[str] = None
-    created_at: datetime = datetime.now()
+    created_at: datetime = Field(default_factory=datetime.now)

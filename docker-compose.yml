@@ -1,0 +1,24 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persistente opslag: audio-bestanden en de SQLite-database overleven
+      # een container-restart en zijn bereikbaar vanaf de host voor debugging.
+      - ./storage:/app/storage
+      # Cachet gedownloade Whisper-modellen, zodat een rebuild niet elke keer
+      # opnieuw een paar honderd MB tot GB aan modeldata moet downloaden.
+      - whisper-model-cache:/root/.cache/huggingface
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - OLLAMA_MODEL=qwen2.5:7b
+      - WHISPER_MODEL_SIZE=small
+      - WHISPER_DEVICE=cpu
+      - WHISPER_COMPUTE_TYPE=int8
+    extra_hosts:
+      # Nodig op Linux; op macOS/Windows met Docker Desktop is dit automatisch aanwezig.
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  whisper-model-cache:
