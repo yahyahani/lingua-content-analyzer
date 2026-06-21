@@ -1,41 +1,48 @@
 """
-Vat Arabische tekst samen met een lokaal LLM via Ollama.
+Vat tekst samen met een lokaal LLM via Ollama, in een gekozen doeltaal.
+De brontekst kan in elke taal zijn (die Whisper heeft gedetecteerd);
+de samenvatting wordt geschreven in summary_language.
 """
+import json
 import ollama
 from app.config import settings
+from app.models.schemas import SummaryLanguage, SUMMARY_LANGUAGE_NAMES
 
-SUMMARY_PROMPT = """أنت مساعد متخصص في تلخيص النصوص العربية.
-اقرأ النص التالي واكتب:
-1. ملخص موجز في 3-5 جمل.
-2. قائمة من 3 إلى 6 نقاط رئيسية (key points).
+SUMMARY_PROMPT = """You are an assistant specialized in summarizing transcripts.
+The text below may be in any language. Read it and write your response
+ENTIRELY in {target_language}, regardless of the source language:
 
-أجب فقط بصيغة JSON بهذا الشكل بالضبط، بدون أي نص إضافي قبله أو بعده:
+1. A concise summary in 3-5 sentences.
+2. A list of 3 to 6 key points.
+
+Respond ONLY in this exact JSON format, with no extra text before or after:
 {{"summary": "...", "key_points": ["...", "..."]}}
 
-النص:
+Text:
 {text}
 """
 
 
-def summarize_text(text: str) -> dict:
+def summarize_text(text: str, summary_language: SummaryLanguage = SummaryLanguage.ENGLISH) -> dict:
     """
     Stuurt de tekst naar het lokale Ollama model en parsed het
-    JSON-antwoord met summary en key_points.
+    JSON-antwoord met summary en key_points, geschreven in summary_language.
     """
     client = ollama.Client(host=settings.ollama_host)
+
+    target_language_name = SUMMARY_LANGUAGE_NAMES[summary_language]
 
     response = client.chat(
         model=settings.ollama_model,
         messages=[{
             "role": "user",
-            "content": SUMMARY_PROMPT.format(text=text),
+            "content": SUMMARY_PROMPT.format(target_language=target_language_name, text=text),
         }],
         format="json",
     )
 
     content = response["message"]["content"]
 
-    import json
     try:
         parsed = json.loads(content)
         return {

@@ -1,128 +1,155 @@
-# Arabic Content Analyzer
+# Lingua — Multilingual Content Analyzer
 
-Een tool die Arabische YouTube-video's automatisch transcribeert en samenvat.
-Geef een YouTube-link op, en de tool downloadt de audio, transcribeert deze
-naar Arabische tekst (via Whisper) en genereert een samenvatting met
-belangrijkste punten (via een lokaal LLM met Ollama).
+A tool that automatically transcribes and summarizes YouTube videos in any
+language. Paste a link, and it downloads the audio, transcribes it with
+automatic language detection (via Whisper), and generates a summary with key
+points — written in a language of your choice (via a local LLM with Ollama),
+independent of the video's original language.
 
-Inclusief een dashboard in manuscript-stijl met live voortgang en een
-geschiedenis van eerdere analyses, elk met een detailpagina die het volledige
-transcript toont.
+Includes a dashboard with live progress, a deletable analysis history, a
+detail page with the full transcript, and a dark/light theme toggle.
 
-## Waarom dit project?
+|                          Dark mode                          |                          Light mode                           |
+| :-----------------------------------------------------------: | :------------------------------------------------------------: |
+| ![Dark mode dashboard](docs/screenshots/dashboard-dark.png) | ![Light mode dashboard](docs/screenshots/dashboard-light.png) |
 
-Arabische NLP-tools zijn schaars vergeleken met Engelstalige tools. Dit project
-combineert speech-to-text en samenvatting specifiek geoptimaliseerd voor
-Arabische content (podcasts, lezingen, interviews, nieuws).
+## Why this project?
 
-## Architectuur
+Started as an Arabic-focused NLP tool — Arabic speech-to-text and
+summarization tools are scarce compared to English ones — and grew into a
+general-purpose multilingual analyzer. Whisper detects the spoken language
+automatically; summaries are available in six languages: English, French,
+Spanish, German, Arabic, and Dutch.
+
+## Architecture
 
 ```
-YouTube URL --> yt-dlp (audio download) --> faster-whisper (transcriptie)
-            --> Ollama / lokaal LLM (samenvatting) --> SQLite (opslag)
-                                                     --> Dashboard (HTML/JS)
+YouTube URL --> yt-dlp (audio download) --> faster-whisper (transcription,
+                                              auto language detection)
+            --> Ollama / local LLM (summary in chosen language) --> SQLite (storage)
+                                                                  --> Dashboard (HTML/JS)
 ```
 
-De verwerking draait asynchroon: je krijgt direct een `job_id` terug en kunt
-de status pollen totdat de job klaar is. Alle jobs worden persistent
-opgeslagen in SQLite, dus de geschiedenis blijft bestaan tussen herstarts.
+Processing runs asynchronously: you immediately get a `job_id` back and can
+poll the status until the job is done. All jobs persist in SQLite, so history
+survives restarts. The video's language is detected automatically; the
+summary language is chosen independently when starting an analysis.
 
-## Vereisten
+## Requirements
 
-- Python 3.10+ (voor lokaal draaien) of Docker (voor containerized draaien)
-- [Ollama](https://ollama.com) geinstalleerd en draaiend op de hostmachine
-- ffmpeg geinstalleerd (nodig voor audio-extractie door yt-dlp) — alleen bij lokaal draaien; in Docker is dit al meegenomen
+- Python 3.10+ (for running locally) or Docker (for running containerized)
+- [Ollama](https://ollama.com) installed and running on the host machine
+- ffmpeg installed (needed for audio extraction by yt-dlp) — local only; already included in the Docker image
 
-## Optie A: Lokaal draaien
+## Option A: Run locally
 
 ```bash
-# 1. Virtuele omgeving aanmaken
+# 1. Create a virtual environment
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# 2. Dependencies installeren
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Ollama model downloaden
+# 3. Pull the Ollama model
 ollama pull qwen2.5:7b
 
-# 4. .env aanmaken (optioneel, anders worden defaults gebruikt)
+# 4. Create .env (optional, defaults are used otherwise)
 cp .env.example .env
 ```
 
-Start de server:
+Start the server:
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-Open het dashboard door `dashboard/index.html` in je browser te openen
-(bijvoorbeeld via `open dashboard/index.html` op macOS).
+Open the dashboard by opening `dashboard/index.html` in your browser (e.g.
+`open dashboard/index.html` on macOS).
 
-## Optie B: Draaien met Docker
+## Option B: Run with Docker
 
-Ollama draait op de hostmachine (niet in de container), omdat het GPU/Metal-
-acceleratie nodig heeft die in een container op macOS niet goed werkt. De
-container praat met Ollama via `host.docker.internal`.
+Ollama runs on the host machine (not in the container), since it needs
+GPU/Metal acceleration that doesn't work well in a container on macOS. The
+container talks to Ollama via `host.docker.internal`.
 
 ```bash
-# 1. Zorg dat Ollama op je host draait met het juiste model
+# 1. Make sure Ollama is running on your host with the right model
 ollama pull qwen2.5:7b
 ollama serve
 
-# 2. Build en start de container
+# 2. Build and start the container
 docker compose up --build
 ```
 
-De API draait nu op `http://localhost:8000`, met dezelfde endpoints als bij
-lokaal draaien. Audio-bestanden en de database worden opgeslagen in `./storage`
-op je host (gemount als volume), dus je verliest geen data bij een restart.
+The API runs on `http://localhost:8000`, with the same endpoints as running
+locally. Audio files and the database are stored in `./storage` on your host
+(mounted as a volume), so no data is lost on restart. The Whisper model cache
+is also persisted across rebuilds via a named volume.
 
-Stoppen:
+Stop the container:
 ```bash
 docker compose down
 ```
 
-Het dashboard (`dashboard/index.html`) werkt op precies dezelfde manier,
-onafhankelijk van of de backend in Docker of lokaal draait — open het bestand
-gewoon in je browser.
+The dashboard (`dashboard/index.html`) works the same way regardless of
+whether the backend runs in Docker or locally — just open the file in your
+browser.
 
-## De API
+## The dashboard
 
-Interactieve documentatie (Swagger) is te vinden op `http://localhost:8000/docs`.
+- **New analysis**: paste a link, pick a summary language, click Analyze.
+  Progress updates live (downloading → transcribing → summarizing → done).
+- **History**: every analysis is listed with a language-pair chip (detected
+  language → summary language), status, and a short preview. Click a
+  completed entry to see the full detail page with the complete transcript.
+- **Delete**: each entry has a delete button with a confirmation dialog. This
+  removes the database record and the downloaded audio file.
+- **Theme toggle**: switch between dark and light mode (top-right icon); the
+  choice is remembered across visits.
 
-### 1. Start een analyse
+## The API
+
+Interactive documentation (Swagger) is available at `http://localhost:8000/docs`.
+
+### 1. Start an analysis
+
+The video's language is detected automatically. `summary_language` controls
+the language of the summary — independent of the video's language. Valid
+values: `en`, `fr`, `es`, `de`, `ar`, `nl`. Defaults to `en`.
 
 ```bash
 curl -X POST http://localhost:8000/analyze \
   -H "Content-Type: application/json" \
-  -d '{"youtube_url": "https://www.youtube.com/watch?v=VIDEO_ID"}'
+  -d '{"youtube_url": "https://www.youtube.com/watch?v=VIDEO_ID", "summary_language": "nl"}'
 ```
 
-Antwoord:
+Response:
 ```json
 {"job_id": "abc-123", "status": "pending"}
 ```
 
-### 2. Status checken
+### 2. Check status
 
 ```bash
 curl http://localhost:8000/status/abc-123
 ```
 
-### 3. Resultaat ophalen (zodra status "done" is)
+### 3. Get the result (once status is "done")
 
 ```bash
 curl http://localhost:8000/result/abc-123
 ```
 
-Antwoord:
+Response:
 ```json
 {
   "job_id": "abc-123",
   "status": "done",
   "youtube_url": "https://www.youtube.com/watch?v=VIDEO_ID",
   "video_title": "...",
+  "detected_language": "fr",
+  "summary_language": "nl",
   "transcript": "...",
   "summary": "...",
   "key_points": ["...", "..."],
@@ -130,48 +157,67 @@ Antwoord:
 }
 ```
 
-### 4. Geschiedenis van alle analyses
+`detected_language` is the language Whisper recognized in the video (ISO
+639-1 code, e.g. `fr` for French). `summary_language` is the language you
+requested for the summary — these can differ.
+
+### 4. List analysis history
 
 ```bash
 curl http://localhost:8000/jobs
 ```
 
+### 5. Delete an analysis
+
+Removes the database record and the downloaded audio file (if it still exists).
+
+```bash
+curl -X DELETE http://localhost:8000/jobs/abc-123
+```
+
+Response:
+```json
+{"job_id": "abc-123", "deleted": true}
+```
+
 ## Tests
 
-Het project heeft twee soorten tests:
+The project has two kinds of tests:
 
-- **Unit- en API-tests** (`tests/test_job_store.py`, `tests/test_api.py`):
-  snel, geen externe dependencies, mocken de pipeline. Draaien standaard mee.
-- **Integratietests** (`tests/test_pipeline_integration.py`): roepen de
-  echte yt-dlp, Whisper en Ollama aan. Traag, vereisen netwerk en een
-  draaiende Ollama-server. Draaien NIET standaard mee.
+- **Unit and API tests** (`tests/test_job_store.py`, `tests/test_api.py`):
+  fast, no external dependencies, mock the pipeline. Run by default.
+- **Integration tests** (`tests/test_pipeline_integration.py`): call the real
+  yt-dlp, Whisper, and Ollama. Slow, require network access and a running
+  Ollama server. Do NOT run by default.
 
-Dependencies installeren:
+Install dependencies:
 ```bash
 pip install -r requirements-dev.txt
 ```
 
-Snelle tests draaien (dit is wat je normaal gebruikt):
+Run the fast tests (what you'd normally use):
 ```bash
 pytest
 ```
 
-Integratietests draaien (vereist een korte, publieke Arabische YouTube-link):
+Run the integration tests (requires a short, public YouTube link):
 ```bash
 TEST_YOUTUBE_URL="https://www.youtube.com/watch?v=..." pytest -m integration
 ```
 
 ## Roadmap
 
-- [x] Persistente opslag (SQLite i.p.v. in-memory)
-- [x] Dashboard met geschiedenis
-- [x] Detailpagina met volledig transcript
-- [x] Docker-ondersteuning
-- [ ] Sentiment-analyse van reacties/transcript
-- [ ] Ondersteuning voor meerdere Arabische dialecten
-- [ ] Ondersteuning voor lokale audiobestanden naast YouTube-links
-- [ ] Timestamps koppelen aan key points
+- [x] Persistent storage (SQLite instead of in-memory)
+- [x] Dashboard with history
+- [x] Detail page with full transcript
+- [x] Docker support
+- [x] Multilingual support: automatic language detection + summary language choice
+- [x] Delete analyses from history
+- [x] Dark/light theme toggle
+- [ ] Sentiment analysis of transcripts/comments
+- [ ] Support for local audio files alongside YouTube links
+- [ ] Timestamps linked to key points
 
-## Licentie
+## License
 
 MIT

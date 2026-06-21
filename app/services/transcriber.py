@@ -20,20 +20,22 @@ def _get_model() -> WhisperModel:
     return _model
 
 
-def transcribe_audio(audio_path: str) -> str:
+def transcribe_audio(audio_path: str) -> tuple[str, str]:
     """
     Transcribeert een audiobestand naar tekst.
-    We zetten language='ar' vast, zodat Whisper niet zelf
-    moet gokken welke taal het is (sneller en accurater).
+    De taal wordt automatisch gedetecteerd door Whisper (geen vast taalcode),
+    zodat dezelfde pipeline elke door Whisper ondersteunde taal kan verwerken.
+
+    Returns:
+        (transcript, detected_language_code) — bv. ("Hello world", "en")
     """
     model = _get_model()
 
     segments, info = model.transcribe(
         audio_path,
-        language="ar",
         beam_size=5,
         vad_filter=True,  # filtert stiltes/ruis eruit, beter voor lange audio
     )
 
     full_text = " ".join(segment.text.strip() for segment in segments)
-    return full_text.strip()
+    return full_text.strip(), info.language

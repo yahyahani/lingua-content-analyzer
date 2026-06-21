@@ -1,7 +1,9 @@
 """
-FastAPI applicatie: endpoints voor het analyseren van Arabische YouTube content.
+FastAPI applicatie: endpoints voor het analyseren van YouTube content
+in meerdere talen (automatische taaldetectie, samenvatting in een gekozen taal).
 """
 import uuid
+from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,9 +26,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Arabic Content Analyzer",
-    description="Download, transcribeer en vat Arabische YouTube-content samen.",
-    version="0.1.0",
+    title="Multilingual Content Analyzer",
+    description="Download, transcribe, and summarize YouTube content in multiple languages.",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
@@ -41,19 +43,23 @@ app.add_middleware(
 
 @app.get("/")
 def root():
-    return {"message": "Arabic Content Analyzer API is actief."}
+    return {"message": "Multilingual Content Analyzer API is actief."}
 
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 def analyze(request: AnalyzeRequest, background_tasks: BackgroundTasks):
     """
     Start de analyse van een YouTube video.
+    De video-taal wordt automatisch gedetecteerd; de samenvatting wordt
+    geschreven in request.summary_language.
     Geeft direct een job_id terug; de verwerking draait op de achtergrond.
     """
     job_id = str(uuid.uuid4())
-    job_store.create_job(job_id, str(request.youtube_url))
+    job_store.create_job(job_id, str(request.youtube_url), summary_language=request.summary_language)
 
-    background_tasks.add_task(run_pipeline, job_id, str(request.youtube_url))
+    background_tasks.add_task(
+        run_pipeline, job_id, str(request.youtube_url), request.summary_language
+    )
 
     return AnalyzeResponse(job_id=job_id, status=JobStatus.PENDING)
 
@@ -89,6 +95,8 @@ def get_result(job_id: str):
         status=job.status,
         youtube_url=job.youtube_url,
         video_title=job.video_title,
+        detected_language=job.detected_language,
+        summary_language=job.summary_language,
         transcript=job.transcript,
         summary=job.summary,
         key_points=job.key_points,
@@ -109,9 +117,30 @@ def list_jobs(limit: int = 50):
             "status": job.status,
             "video_title": job.video_title,
             "youtube_url": job.youtube_url,
+            "detected_language": job.detected_language,
+            "summary_language": job.summary_language,
             "summary": job.summary,
             "key_points": job.key_points,
             "created_at": job.created_at.isoformat(),
         }
         for job in jobs
     ]
+
+
+@app.delete("/jobs/{job_id}")
+def delete_job(job_id: str):
+    """
+    Verwijdert een analyse uit de geschiedenis, inclusief het bijbehorende
+    gedownloade audio-bestand (als dat nog bestaat).
+    """
+    job = job_store.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job niet gevonden.")
+
+    if job.audio_path:
+        audio_file = Path(job.audio_path)
+        if audio_file.exists():
+            audio_file.unlink()
+
+    job_store.delete_job(job_id)
+    return {"job_id": job_id, "deleted": True}

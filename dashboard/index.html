@@ -1,383 +1,750 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>محلل المحتوى العربي</title>
+<title>Lingua — Content Analyzer</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<script>
+  // Vroeg toepassen, vóór de eerste paint, om een flits van het verkeerde thema te voorkomen.
+  (function() {
+    const saved = localStorage.getItem('lingua-theme');
+    const theme = saved || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Tajawal:wght@300;400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Arabic:wght@500;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --parchment: #F3ECDD;
-    --parchment-deep: #E8DCC0;
-    --ink: #2B231A;
-    --ink-soft: #5A4F40;
-    --terracotta: #B5552E;
-    --terracotta-deep: #8C3F20;
-    --gold: #A6802E;
-    --line: #D4C5A3;
-    --green-status: #4A6B4D;
-    --red-status: #A33B2C;
+    /* Dark theme — warm walnut/coffee base, vivid gold glow */
+    --bg: #1F1409;
+    --bg-glow: radial-gradient(circle at 15% 0%, rgba(255,179,46,0.30), transparent 50%),
+               radial-gradient(circle at 85% 10%, rgba(232,108,30,0.26), transparent 55%),
+               radial-gradient(circle at 50% 100%, rgba(255,179,46,0.16), transparent 60%);
+    --panel: #332309;
+    --panel-raised: linear-gradient(165deg, #44300F 0%, #36260B 100%);
+    --line: #5C4318;
+    --paper: #FFF6E0;
+    --paper-dim: #E8CD96;
+    --text: #F7E8C4;
+    --text-dim: #C7A464;
+    --accent: #FFB22E;
+    --accent-2: #FF7A1A;
+    --accent-soft: rgba(255, 178, 46, 0.28);
+    --accent-gradient: linear-gradient(135deg, #FFD166 0%, #FFB22E 50%, #FF7A1A 100%);
+    --green: #8FCB7E;
+    --red: #FF6B45;
+    --sheen: rgba(255, 235, 190, 0.20);
+    --shadow-accent: 0 12px 32px -8px rgba(255, 178, 46, 0.65);
+    --shadow-panel: 0 1px 0 rgba(255,225,170,0.09) inset, 0 14px 36px -16px rgba(0,0,0,0.65);
 
-    --font-display: 'Amiri', serif;
-    --font-body: 'Tajawal', sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+    --font-display: 'Fraunces', serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --font-arabic: 'Noto Sans Arabic', sans-serif;
+  }
+
+  [data-theme="light"] {
+    /* Light theme — creamy ivory base, vivid sunlit amber glow */
+    --bg: #FDF3DD;
+    --bg-glow: radial-gradient(circle at 15% 0%, rgba(255,179,46,0.32), transparent 50%),
+               radial-gradient(circle at 85% 8%, rgba(232,108,30,0.22), transparent 55%),
+               radial-gradient(circle at 50% 100%, rgba(255,179,46,0.16), transparent 60%);
+    --panel: #FFFCF4;
+    --panel-raised: linear-gradient(165deg, #FFFFFF 0%, #FCEBC6 100%);
+    --line: #EFD6A0;
+    --paper: #3A2A14;
+    --paper-dim: #7A5F39;
+    --text: #4A3A22;
+    --text-dim: #8C7350;
+    --accent: #E8870F;
+    --accent-2: #D4540F;
+    --accent-soft: rgba(232, 135, 15, 0.20);
+    --accent-gradient: linear-gradient(135deg, #FFB22E 0%, #E8870F 50%, #D4540F 100%);
+    --green: #2E8F46;
+    --red: #C9421F;
+    --sheen: rgba(255, 255, 255, 0.8);
+    --shadow-accent: 0 12px 28px -8px rgba(232, 135, 15, 0.45);
+    --shadow-panel: 0 1px 0 rgba(255,255,255,0.9) inset, 0 14px 32px -18px rgba(120,90,40,0.22);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    background: var(--parchment);
-    background-image:
-      radial-gradient(circle at 20% 10%, rgba(166,128,46,0.06), transparent 40%),
-      radial-gradient(circle at 90% 80%, rgba(181,85,46,0.05), transparent 40%);
-    color: var(--ink);
+    background: var(--bg);
+    background-image: var(--bg-glow);
+    background-attachment: fixed;
+    color: var(--text);
     font-family: var(--font-body);
     min-height: 100vh;
-    line-height: 1.6;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
-  .ornament-border {
-    position: fixed;
-    inset: 12px;
-    border: 1.5px solid var(--line);
-    pointer-events: none;
-    z-index: 0;
+  body, .rail, .panel, .composer-box, .entry, input, select, button {
+    transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
   }
-  .ornament-border::before,
-  .ornament-border::after {
-    content: '';
-    position: absolute;
-    width: 22px;
-    height: 22px;
-    border: 1.5px solid var(--gold);
-  }
-  .ornament-border::before { top: -1.5px; right: -1.5px; border-left: none; border-bottom: none; }
-  .ornament-border::after { bottom: -1.5px; left: -1.5px; border-right: none; border-top: none; }
 
-  .wrap {
+  .shell {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    min-height: 100vh;
     position: relative;
-    z-index: 1;
-    max-width: 1180px;
-    margin: 0 auto;
-    padding: 56px 40px 80px;
   }
 
-  /* Header */
-  header {
+  /* ---------- Left rail ---------- */
+  .rail {
+    background: var(--panel-raised);
+    border-right: 1px solid var(--line);
+    padding: 36px 28px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-shadow: var(--shadow-panel);
+  }
+
+  .theme-toggle {
+    position: absolute;
+    top: 28px;
+    right: 28px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    box-shadow: 0 1px 0 var(--sheen) inset;
+    transition: all 0.2s ease;
+  }
+  .theme-toggle:hover { color: var(--accent); border-color: var(--accent); }
+  .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .theme-toggle svg { width: 17px; height: 17px; }
+  .theme-toggle .icon-moon { display: block; }
+  .theme-toggle .icon-sun { display: none; }
+  [data-theme="light"] .theme-toggle .icon-moon { display: none; }
+  [data-theme="light"] .theme-toggle .icon-sun { display: block; }
+
+  .logo-mark {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    margin-bottom: 4px;
+  }
+  .logo-bg { fill: var(--bg); }
+  .logo-accent { stroke: var(--accent); }
+  .logo-paper { stroke: var(--paper); }
+  .logo-mark .glyphs {
+    font-family: var(--font-arabic);
+    font-size: 17px;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .logo-mark h1 {
+    font-family: var(--font-display);
+    font-size: 23px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .tagline {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    margin-bottom: 40px;
+    line-height: 1.5;
+    max-width: 220px;
+  }
+
+  .rail-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 20px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 28px;
+  }
+  .stat-row {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
-    border-bottom: 2px solid var(--ink);
-    padding-bottom: 28px;
-    margin-bottom: 48px;
+    align-items: baseline;
   }
-  .brand-eyebrow {
+  .stat-row .stat-label {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .stat-row .stat-value {
     font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.18em;
-    color: var(--terracotta-deep);
-    text-transform: uppercase;
-    margin-bottom: 10px;
-  }
-  h1.brand {
-    font-family: var(--font-display);
-    font-size: 44px;
-    font-weight: 700;
-    color: var(--ink);
-  }
-  .brand-sub {
-    font-size: 14px;
-    color: var(--ink-soft);
-    margin-top: 6px;
-    font-weight: 300;
-  }
-  .header-stat {
-    text-align: left;
-    font-family: var(--font-mono);
-  }
-  .header-stat .num {
-    font-size: 32px;
-    color: var(--terracotta);
+    font-size: 15px;
+    color: var(--paper);
     font-weight: 500;
   }
-  .header-stat .label {
-    font-size: 11px;
-    color: var(--ink-soft);
+
+  .lang-legend {
+    margin-top: auto;
+  }
+  .lang-legend-title {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
     letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+  .lang-legend-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .lang-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .lang-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-gradient);
+    box-shadow: 0 0 6px var(--accent-soft);
+    flex-shrink: 0;
   }
 
-  /* Input section - the hero */
-  .composer {
-    background: var(--parchment-deep);
-    border: 1px solid var(--line);
-    border-radius: 2px;
-    padding: 40px;
-    margin-bottom: 56px;
-    position: relative;
+  /* ---------- Main column ---------- */
+  .main {
+    padding: 48px 56px 80px;
+    max-width: 880px;
   }
-  .composer::before {
-    content: '﴿';
-    position: absolute;
-    top: 16px;
-    right: 24px;
-    font-family: var(--font-display);
-    font-size: 28px;
-    color: var(--gold);
-    opacity: 0.5;
-  }
-  .composer-title {
-    font-family: var(--font-display);
-    font-size: 24px;
-    margin-bottom: 6px;
-  }
-  .composer-hint {
-    font-size: 13px;
-    color: var(--ink-soft);
+
+  .error-banner {
+    display: none;
+    background: color-mix(in srgb, var(--red) 12%, transparent);
+    border: 1px solid var(--red);
+    color: var(--red);
+    padding: 13px 18px;
+    border-radius: 8px;
     margin-bottom: 24px;
+    font-size: 13.5px;
+  }
+  .error-banner.active { display: block; }
+
+  /* Composer */
+  .composer {
+    margin-bottom: 56px;
+  }
+  .composer-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .composer h2 {
+    font-family: var(--font-display);
+    font-size: 30px;
+    font-weight: 500;
+    color: var(--paper);
+    margin-bottom: 26px;
+    max-width: 480px;
+    line-height: 1.3;
+  }
+
+  .composer-box {
+    background: var(--panel-raised);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: var(--shadow-panel);
+    position: relative;
+    overflow: hidden;
+  }
+  .composer-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--sheen) 50%, transparent);
   }
   .input-row {
     display: flex;
-    gap: 12px;
+    gap: 10px;
+    margin-bottom: 14px;
   }
   .input-row input {
     flex: 1;
-    background: var(--parchment);
-    border: 1.5px solid var(--ink);
-    border-radius: 2px;
-    padding: 16px 18px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
     font-family: var(--font-mono);
-    font-size: 14px;
-    color: var(--ink);
-    direction: ltr;
-    text-align: left;
+    font-size: 13.5px;
+    color: var(--paper);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06) inset;
   }
-  .input-row input::placeholder { color: #A89A7E; }
+  .input-row input::placeholder { color: var(--text-dim); opacity: 0.7; }
   .input-row input:focus {
     outline: none;
-    border-color: var(--terracotta);
-    box-shadow: 0 0 0 3px rgba(181,85,46,0.12);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
   }
-  .btn-analyze {
-    background: var(--ink);
-    color: var(--parchment);
-    border: none;
-    padding: 16px 32px;
-    font-family: var(--font-body);
-    font-weight: 700;
-    font-size: 15px;
-    border-radius: 2px;
-    cursor: pointer;
-    transition: background 0.2s ease;
-    white-space: nowrap;
-  }
-  .btn-analyze:hover { background: var(--terracotta-deep); }
-  .btn-analyze:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 
-  /* progress state */
-  .progress-line {
-    margin-top: 20px;
-    display: none;
+  .lang-row {
+    display: flex;
     align-items: center;
     gap: 14px;
+  }
+  .lang-pair-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .lang-pair-control .src-badge {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--paper-dim);
+  }
+  .lang-pair-control .arrow { color: var(--accent); font-size: 14px; }
+  .lang-select {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-family: var(--font-body);
+    font-weight: 500;
     font-size: 13px;
-    color: var(--terracotta-deep);
+    color: var(--paper);
+    cursor: pointer;
+  }
+  .lang-select:focus { outline: none; border-color: var(--accent); }
+
+  .btn-analyze {
+    margin-left: auto;
+    background: var(--accent-gradient);
+    color: #1A0D05;
+    border: none;
+    padding: 11px 26px;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 13.5px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: var(--shadow-accent), 0 1px 0 rgba(255,255,255,0.35) inset;
+    position: relative;
+  }
+  [data-theme="light"] .btn-analyze { color: #FFF6F4; }
+  .btn-analyze:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: var(--shadow-accent), 0 0 0 4px var(--accent-soft), 0 1px 0 rgba(255,255,255,0.35) inset; }
+  .btn-analyze:active { transform: translateY(0); }
+  .btn-analyze:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+  .btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; filter: none; transform: none; }
+
+  .progress-line {
+    display: none;
+    align-items: center;
+    gap: 11px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--accent);
   }
   .progress-line.active { display: flex; }
   .progress-dot {
-    width: 8px; height: 8px;
+    width: 7px; height: 7px;
     border-radius: 50%;
-    background: var(--terracotta);
-    animation: pulse 1.4s ease-in-out infinite;
+    background: var(--accent);
+    animation: pulse 1.3s ease-in-out infinite;
   }
   @keyframes pulse {
-    0%, 100% { opacity: 0.3; transform: scale(0.8); }
-    50% { opacity: 1; transform: scale(1.1); }
+    0%, 100% { opacity: 0.35; transform: scale(0.85); }
+    50% { opacity: 1; transform: scale(1.05); }
   }
 
-  /* Section heading */
+  /* Section head */
   .section-head {
     display: flex;
     align-items: baseline;
-    gap: 16px;
-    margin-bottom: 24px;
+    gap: 14px;
+    margin-bottom: 22px;
   }
-  .section-head h2 {
+  .section-head h3 {
     font-family: var(--font-display);
-    font-size: 22px;
-    font-weight: 700;
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--paper);
   }
-  .section-head .rule {
-    flex: 1;
-    height: 1px;
-    background: var(--line);
-  }
+  .section-head .rule { flex: 1; height: 1px; background: var(--line); }
   .section-head .count {
     font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--ink-soft);
+    font-size: 11.5px;
+    color: var(--text-dim);
   }
 
-  /* History cards */
-  .history-grid {
-    display: grid;
-    gap: 18px;
-  }
-  .card {
-    background: var(--parchment);
+  /* History list */
+  .history-list { display: flex; flex-direction: column; gap: 1px; }
+  .entry {
+    background: var(--panel);
     border: 1px solid var(--line);
-    border-radius: 2px;
-    padding: 24px 28px;
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 10px;
     display: grid;
-    grid-template-columns: 90px 1fr 140px;
-    gap: 24px;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
     align-items: start;
-    transition: border-color 0.2s ease, transform 0.2s ease;
+    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    box-shadow: 0 1px 0 var(--sheen) inset;
   }
-  .card:hover {
-    border-color: var(--terracotta);
-    transform: translateX(-2px);
+  .entry-clickable { cursor: pointer; }
+  .entry-clickable:hover {
+    border-color: var(--accent);
+    background: var(--panel-raised);
+    box-shadow: 0 1px 0 var(--sheen) inset, 0 8px 20px -12px rgba(255,107,91,0.3);
+    transform: translateY(-1px);
   }
-  .card-clickable {
-    cursor: pointer;
+  .entry-clickable:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .entry-main { min-width: 0; }
+  .entry-top-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
   }
-  .card-clickable:focus-visible {
-    outline: 3px solid var(--gold);
-    outline-offset: 2px;
-  }
-  .card-status {
+
+  .lang-pair-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-family: var(--font-mono);
     font-size: 11px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding: 5px 0;
-    border-bottom: 2px solid currentColor;
-    text-align: center;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--accent-2) 16%, transparent);
+    color: var(--accent-2);
+    flex-shrink: 0;
+    box-shadow: 0 1px 0 var(--sheen) inset;
   }
-  .card-status.done { color: var(--green-status); }
-  .card-status.failed { color: var(--red-status); }
-  .card-status.processing { color: var(--terracotta); }
+  .lang-pair-chip .glyph-src { font-family: var(--font-arabic); font-size: 12px; }
 
-  .card-title {
+  .status-chip {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .status-chip.done { background: rgba(95, 174, 130, 0.14); color: var(--green); }
+  .status-chip.failed { background: rgba(212, 96, 79, 0.14); color: var(--red); }
+  .status-chip.processing { background: var(--accent-soft); color: var(--accent); }
+
+  .entry-title {
     font-family: var(--font-display);
-    font-size: 18px;
-    margin-bottom: 8px;
-    color: var(--ink);
+    font-size: 16.5px;
+    font-weight: 500;
+    color: var(--paper);
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .card-summary {
-    font-size: 13.5px;
-    color: var(--ink-soft);
-    line-height: 1.7;
+  .entry-summary {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
-  .card-keypoints {
+  .entry-keypoints {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
     margin-top: 10px;
   }
   .keypoint-tag {
-    font-size: 11.5px;
-    background: var(--parchment-deep);
+    font-size: 11px;
+    background: var(--bg);
     border: 1px solid var(--line);
-    color: var(--ink-soft);
-    padding: 4px 10px;
-    border-radius: 12px;
+    color: var(--text-dim);
+    padding: 3px 9px;
+    border-radius: 10px;
   }
-  .card-meta {
-    text-align: left;
+
+  .entry-meta {
+    text-align: right;
     font-family: var(--font-mono);
     font-size: 11px;
-    color: #A89A7E;
-    direction: ltr;
+    color: var(--text-dim);
+    white-space: nowrap;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
   }
+
+  .delete-btn {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+  }
+  .delete-btn:hover { border-color: var(--red); color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
+  .delete-btn:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+  .delete-btn svg { width: 13px; height: 13px; }
+
+  /* Confirmation modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 6, 20, 0.65);
+    backdrop-filter: blur(3px);
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-box {
+    background: var(--panel-raised);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 28px;
+    max-width: 380px;
+    width: 90%;
+    box-shadow: var(--shadow-panel), 0 24px 48px -16px rgba(0,0,0,0.4);
+  }
+  .modal-box h4 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--paper);
+    margin-bottom: 10px;
+  }
+  .modal-box p {
+    font-size: 13.5px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    margin-bottom: 22px;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  .modal-btn {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 13px;
+    padding: 9px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid var(--line);
+  }
+  .modal-btn-cancel { background: transparent; color: var(--text-dim); }
+  .modal-btn-cancel:hover { color: var(--paper); }
+  .modal-btn-confirm { background: var(--red); color: #2A0A06; border-color: var(--red); }
+  .modal-btn-confirm:hover { filter: brightness(1.1); }
+  .modal-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   .empty-state {
     text-align: center;
-    padding: 60px 20px;
-    color: var(--ink-soft);
+    padding: 64px 20px;
+    color: var(--text-dim);
     font-family: var(--font-display);
-    font-size: 18px;
+    font-size: 17px;
     border: 1px dashed var(--line);
-    border-radius: 2px;
+    border-radius: 10px;
   }
 
-  @media (max-width: 720px) {
-    .wrap { padding: 32px 20px 60px; }
-    header { flex-direction: column; align-items: flex-start; gap: 16px; }
-    .input-row { flex-direction: column; }
-    .card { grid-template-columns: 1fr; }
-    .card-meta { text-align: right; direction: rtl; }
+  @media (max-width: 880px) {
+    .shell { grid-template-columns: 1fr; }
+    .rail {
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+      flex-direction: row;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 20px 24px;
+    }
+    .tagline { display: none; }
+    .rail-stats { display: none; }
+    .lang-legend { display: none; }
+    .main { padding: 32px 24px 60px; }
+    .lang-row { flex-wrap: wrap; }
+    .btn-analyze { margin-left: 0; width: 100%; }
+    .entry { grid-template-columns: 1fr; }
+    .entry-meta { text-align: left; }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .progress-dot { animation: none; }
-    .card { transition: none; }
   }
 </style>
 </head>
 <body>
-<div class="ornament-border"></div>
-<div class="wrap">
+<div class="shell">
 
-  <header>
+  <aside class="rail">
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark/light mode">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+      </svg>
+    </button>
     <div>
-      <div class="brand-eyebrow">Arabic Content Intelligence</div>
-      <h1 class="brand">محلل المحتوى</h1>
-      <div class="brand-sub">تفريغ وتلخيص المحتوى العربي من يوتيوب</div>
+      <div class="logo-mark">
+        <svg width="30" height="30" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" class="logo-bg"/>
+          <path d="M14 22 H30" class="logo-accent" stroke-width="3.2" stroke-linecap="round"/>
+          <path d="M14 32 H26" class="logo-accent" stroke-width="3.2" stroke-linecap="round" opacity="0.55"/>
+          <path d="M34 32 H50" class="logo-paper" stroke-width="3.2" stroke-linecap="round"/>
+          <path d="M38 42 H50" class="logo-paper" stroke-width="3.2" stroke-linecap="round" opacity="0.55"/>
+          <path d="M28 27 L36 27" class="logo-accent" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M33 24 L36 27 L33 30" class="logo-accent" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+        <h1>Lingua</h1>
+      </div>
+      <div class="tagline">Transcribe and summarize spoken content across languages.</div>
     </div>
-    <div class="header-stat">
-      <div class="num" id="totalCount">٠</div>
-      <div class="label">ANALYSES TOTAL</div>
-    </div>
-  </header>
 
-  <div id="errorBanner" style="display:none; background:#F5D9D2; border:1px solid var(--red-status); color:var(--red-status); padding:14px 20px; border-radius:2px; margin-bottom:24px; font-size:13px;"></div>
-
-  <div class="composer">
-    <div class="composer-title">تحليل جديد</div>
-    <div class="composer-hint">ألصق رابط فيديو يوتيوب لبدء التفريغ والتلخيص التلقائي</div>
-    <div class="input-row">
-      <input type="text" placeholder="https://www.youtube.com/watch?v=..." id="urlInput">
-      <button class="btn-analyze" id="analyzeBtn" onclick="startAnalysis()">ابدأ التحليل</button>
+    <div class="rail-stats">
+      <div class="stat-row">
+        <span class="stat-label">Total analyses</span>
+        <span class="stat-value" id="totalCount">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Completed</span>
+        <span class="stat-value" id="doneCount">0</span>
+      </div>
     </div>
-    <div class="progress-line" id="progressLine">
-      <span class="progress-dot"></span>
-      <span id="progressText">جاري المعالجة...</span>
+
+    <div class="lang-legend">
+      <div class="lang-legend-title">Summary languages</div>
+      <div class="lang-legend-grid">
+        <span class="lang-legend-item"><span class="lang-dot"></span>English</span>
+        <span class="lang-legend-item"><span class="lang-dot"></span>French</span>
+        <span class="lang-legend-item"><span class="lang-dot"></span>Spanish</span>
+        <span class="lang-legend-item"><span class="lang-dot"></span>German</span>
+        <span class="lang-legend-item"><span class="lang-dot"></span>Arabic</span>
+        <span class="lang-legend-item"><span class="lang-dot"></span>Dutch</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <div class="error-banner" id="errorBanner"></div>
+
+    <section class="composer">
+      <div class="composer-eyebrow">New analysis</div>
+      <h2>Paste a link. The source language is detected automatically.</h2>
+
+      <div class="composer-box">
+        <div class="input-row">
+          <input type="text" placeholder="https://www.youtube.com/watch?v=..." id="urlInput">
+        </div>
+        <div class="lang-row">
+          <div class="lang-pair-control">
+            <span class="src-badge">auto-detect</span>
+            <span class="arrow">&rarr;</span>
+            <select class="lang-select" id="langSelect">
+              <option value="en">English</option>
+              <option value="fr">French</option>
+              <option value="es">Spanish</option>
+              <option value="de">German</option>
+              <option value="ar">Arabic</option>
+              <option value="nl">Dutch</option>
+            </select>
+          </div>
+          <button class="btn-analyze" id="analyzeBtn" onclick="startAnalysis()">Analyze</button>
+        </div>
+        <div class="progress-line" id="progressLine">
+          <span class="progress-dot"></span>
+          <span id="progressText">Processing...</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h3>History</h3>
+        <div class="rule"></div>
+        <div class="count" id="historyCount">0 entries</div>
+      </div>
+
+      <div class="history-list" id="historyGrid">
+        <div class="empty-state">No analyses yet — paste a link above to get started.</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal-box">
+    <h4>Delete this analysis?</h4>
+    <p>This will permanently remove the transcript, summary, and audio file. This cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-cancel" id="modalCancelBtn">Cancel</button>
+      <button class="modal-btn modal-btn-confirm" id="modalConfirmBtn">Delete</button>
     </div>
   </div>
-
-  <div class="section-head">
-    <h2>سجل التحليلات</h2>
-    <div class="rule"></div>
-    <div class="count" id="historyCount">0 RECENT</div>
-  </div>
-
-  <div class="history-grid" id="historyGrid">
-    <div class="empty-state">لا توجد تحليلات بعد. ألصق رابطًا أعلاه للبدء.</div>
-  </div>
-
 </div>
 
 <script>
   const API_BASE = 'http://localhost:8000';
 
+  const LANGUAGE_NAMES = {
+    en: 'English', fr: 'French', es: 'Spanish',
+    de: 'German', ar: 'Arabic', nl: 'Dutch',
+  };
+
+  // Script-fragmenten per taal, gebruikt als klein typografisch detail in de lang-pair chip.
+  const LANGUAGE_GLYPHS = {
+    ar: 'ع', en: 'En', fr: 'Fr', es: 'Es', de: 'De', nl: 'Nl',
+  };
+
   const STATUS_LABELS = {
-    pending: 'في الانتظار',
-    downloading: 'جاري التحميل',
-    transcribing: 'جاري التفريغ',
-    summarizing: 'جاري التلخيص',
-    done: 'مكتمل',
-    failed: 'فشل',
+    pending: 'Pending', downloading: 'Downloading', transcribing: 'Transcribing',
+    summarizing: 'Summarizing', done: 'Done', failed: 'Failed',
   };
 
   const PROGRESS_TEXT = {
-    pending: 'في قائمة الانتظار...',
-    downloading: 'جاري تحميل الصوت من الفيديو...',
-    transcribing: 'جاري تحويل الصوت إلى نص...',
-    summarizing: 'جاري تلخيص النص...',
-    done: 'تم الانتهاء بنجاح!',
-    failed: 'حدث خطأ في المعالجة.',
+    pending: 'Queued...',
+    downloading: 'Downloading audio from the video...',
+    transcribing: 'Transcribing audio to text...',
+    summarizing: 'Summarizing the text...',
+    done: 'Completed successfully!',
+    failed: 'An error occurred during processing.',
   };
 
   function statusClass(status) {
@@ -386,33 +753,69 @@
     return 'processing';
   }
 
+  function languageName(code) {
+    if (!code) return null;
+    return LANGUAGE_NAMES[code] || code.toUpperCase();
+  }
+
   function showError(message) {
     const banner = document.getElementById('errorBanner');
     banner.textContent = message;
-    banner.style.display = 'block';
+    banner.classList.add('active');
   }
 
   function hideError() {
-    document.getElementById('errorBanner').style.display = 'none';
+    document.getElementById('errorBanner').classList.remove('active');
   }
 
   function formatDate(isoString) {
     const d = new Date(isoString);
-    const date = d.toLocaleDateString('en-CA'); // YYYY-MM-DD, stabiel formaat
-    const time = d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
-    return `${date}<br>${time}`;
+    const date = d.toLocaleDateString('en-CA');
+    const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    return `${date} &middot; ${time}`;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function langPairChip(job) {
+    const srcCode = job.detected_language;
+    const tgtCode = job.summary_language;
+    const srcLabel = srcCode ? (LANGUAGE_GLYPHS[srcCode] || srcCode.toUpperCase()) : '—';
+    const tgtLabel = tgtCode ? (LANGUAGE_GLYPHS[tgtCode] || tgtCode.toUpperCase()) : '—';
+    return `<span class="lang-pair-chip">${srcLabel} &rarr; ${tgtLabel}</span>`;
+  }
+
+  const RTL_LANGUAGES = new Set(['ar', 'he', 'fa', 'ur']);
+
+  // Bepaalt de leesrichting voor een stuk tekst. Gebruikt eerst de bekende
+  // taalcode (betrouwbaar); valt terug op Unicode-detectie van Arabische
+  // schrifttekens als er geen taalcode bekend is (bv. oudere jobs).
+  function textDirection(langCode, text) {
+    if (langCode) {
+      return RTL_LANGUAGES.has(langCode) ? 'rtl' : 'ltr';
+    }
+    if (text && /[\u0600-\u06FF]/.test(text)) {
+      return 'rtl';
+    }
+    return 'ltr';
   }
 
   function renderHistory(jobs) {
     const grid = document.getElementById('historyGrid');
     const count = document.getElementById('historyCount');
     const totalCount = document.getElementById('totalCount');
+    const doneCount = document.getElementById('doneCount');
 
-    totalCount.textContent = jobs.length.toLocaleString('ar-EG');
-    count.textContent = `${jobs.length} RECENT`;
+    totalCount.textContent = jobs.length;
+    doneCount.textContent = jobs.filter(j => j.status === 'done').length;
+    count.textContent = `${jobs.length} ${jobs.length === 1 ? 'entry' : 'entries'}`;
 
     if (jobs.length === 0) {
-      grid.innerHTML = '<div class="empty-state">لا توجد تحليلات بعد. ألصق رابطًا أعلاه للبدء.</div>';
+      grid.innerHTML = '<div class="empty-state">No analyses yet — paste a link above to get started.</div>';
       return;
     }
 
@@ -422,52 +825,63 @@
       const title = job.video_title || job.youtube_url;
       const clickable = job.status === 'done';
 
+      const titleDir = textDirection(job.detected_language, title);
+      const summaryDir = textDirection(job.summary_language, job.summary);
+
       let body;
       if (job.status === 'failed') {
-        body = `<div class="card-summary" style="color: var(--red-status);">تعذر تحليل هذا الفيديو. تحقق من صلاحية الرابط.</div>`;
+        body = `<div class="entry-summary" style="color: var(--red);">Could not analyze this video. Check that the link is valid.</div>`;
       } else if (job.status === 'done') {
-        const tags = (job.key_points || [])
-          .map(p => `<span class="keypoint-tag">${escapeHtml(p)}</span>`)
+        const tags = (job.key_points || []).slice(0, 4)
+          .map(p => `<span class="keypoint-tag" dir="${summaryDir}">${escapeHtml(p)}</span>`)
           .join('');
         body = `
-          <div class="card-summary">${escapeHtml(job.summary || '')}</div>
-          <div class="card-keypoints">${tags}</div>
+          <div class="entry-summary" dir="${summaryDir}">${escapeHtml(job.summary || '')}</div>
+          <div class="entry-keypoints">${tags}</div>
         `;
       } else {
-        body = `<div class="card-summary">قيد المعالجة...</div>`;
+        body = `<div class="entry-summary">Processing...</div>`;
       }
 
-      const cardAttrs = clickable
-        ? `class="card card-clickable" onclick="window.location.href='detail.html?job_id=${encodeURIComponent(job.job_id)}'" tabindex="0" role="button"`
-        : `class="card"`;
+      const entryAttrs = clickable
+        ? `class="entry entry-clickable" onclick="window.location.href='detail.html?job_id=${encodeURIComponent(job.job_id)}'" tabindex="0" role="button"`
+        : `class="entry"`;
 
       return `
-        <div ${cardAttrs}>
-          <div class="card-status ${cls}">${label}</div>
-          <div>
-            <div class="card-title">${escapeHtml(title)}</div>
+        <div ${entryAttrs}>
+          <div class="entry-main">
+            <div class="entry-top-row">
+              ${langPairChip(job)}
+              <span class="status-chip ${cls}">${label}</span>
+            </div>
+            <div class="entry-title" dir="${titleDir}">${escapeHtml(title)}</div>
             ${body}
           </div>
-          <div class="card-meta">${formatDate(job.created_at)}</div>
+          <div class="entry-meta">
+            <span>${formatDate(job.created_at)}</span>
+            <button class="delete-btn" aria-label="Delete this analysis" onclick="event.stopPropagation(); requestDelete('${job.job_id}')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                <path d="M10 11v6"></path>
+                <path d="M14 11v6"></path>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+              </svg>
+            </button>
+          </div>
         </div>
       `;
     }).join('');
   }
 
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
   async function loadHistory() {
     try {
       const res = await fetch(`${API_BASE}/jobs`);
-      if (!res.ok) throw new Error('Kon geschiedenis niet laden');
+      if (!res.ok) throw new Error('Could not load history');
       const jobs = await res.json();
       renderHistory(jobs);
     } catch (err) {
-      showError('لا يمكن الاتصال بالخادم. تأكد أن الخادم يعمل على المنفذ 8000.');
+      showError('Could not connect to the server. Make sure it is running on port 8000.');
     }
   }
 
@@ -480,10 +894,10 @@
       let data;
       try {
         const res = await fetch(`${API_BASE}/status/${jobId}`);
-        if (!res.ok) throw new Error('Status niet gevonden');
+        if (!res.ok) throw new Error('Status not found');
         data = await res.json();
       } catch (err) {
-        showError('فقدنا الاتصال بالخادم أثناء المعالجة.');
+        showError('Lost connection to the server during processing.');
         break;
       }
 
@@ -491,7 +905,7 @@
 
       if (data.status === 'done' || data.status === 'failed') {
         if (data.status === 'failed') {
-          showError(data.error || 'حدث خطأ غير متوقع أثناء المعالجة.');
+          showError(data.error || 'An unexpected error occurred during processing.');
         }
         break;
       }
@@ -499,7 +913,7 @@
 
     document.getElementById('progressLine').classList.remove('active');
     document.getElementById('analyzeBtn').disabled = false;
-    document.getElementById('analyzeBtn').textContent = 'ابدأ التحليل';
+    document.getElementById('analyzeBtn').textContent = 'Analyze';
     loadHistory();
   }
 
@@ -507,26 +921,27 @@
     hideError();
     const input = document.getElementById('urlInput');
     const url = input.value.trim();
+    const summaryLanguage = document.getElementById('langSelect').value;
 
     if (!url) {
-      showError('يرجى إدخال رابط يوتيوب صالح.');
+      showError('Please enter a valid YouTube link.');
       return;
     }
 
     const btn = document.getElementById('analyzeBtn');
     btn.disabled = true;
-    btn.textContent = 'جاري البدء...';
+    btn.textContent = 'Starting...';
 
     try {
       const res = await fetch(`${API_BASE}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ youtube_url: url }),
+        body: JSON.stringify({ youtube_url: url, summary_language: summaryLanguage }),
       });
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || 'فشل بدء التحليل. تحقق من صحة الرابط.');
+        throw new Error(errData.detail || 'Could not start the analysis. Check that the link is valid.');
       }
 
       const data = await res.json();
@@ -541,7 +956,7 @@
     } catch (err) {
       showError(err.message);
       btn.disabled = false;
-      btn.textContent = 'ابدأ التحليل';
+      btn.textContent = 'Analyze';
     }
   }
 
@@ -549,14 +964,64 @@
     if (e.key === 'Enter') startAnalysis();
   });
 
-  // Toegankelijkheid: Enter-toets op een gefocuste card werkt net als een klik
   document.getElementById('historyGrid').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && e.target.classList.contains('card-clickable')) {
+    if (e.key === 'Enter' && e.target.classList.contains('entry-clickable')) {
       e.target.click();
     }
   });
 
-  // Geschiedenis laden bij het openen van de pagina
+  // --- Delete confirmation modal ---
+  let pendingDeleteId = null;
+
+  function requestDelete(jobId) {
+    pendingDeleteId = jobId;
+    document.getElementById('deleteModal').classList.add('active');
+  }
+
+  function closeDeleteModal() {
+    pendingDeleteId = null;
+    document.getElementById('deleteModal').classList.remove('active');
+  }
+
+  async function confirmDelete() {
+    if (!pendingDeleteId) return;
+    const jobId = pendingDeleteId;
+    closeDeleteModal();
+
+    try {
+      const res = await fetch(`${API_BASE}/jobs/${jobId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Could not delete this analysis.');
+      loadHistory();
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  document.getElementById('modalCancelBtn').addEventListener('click', closeDeleteModal);
+  document.getElementById('modalConfirmBtn').addEventListener('click', confirmDelete);
+  document.getElementById('deleteModal').addEventListener('click', (e) => {
+    if (e.target.id === 'deleteModal') closeDeleteModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeDeleteModal();
+  });
+
+  // --- Theme toggle ---
+  function applyTheme(theme) {
+    if (theme === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+  }
+
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const next = isLight ? 'dark' : 'light';
+    applyTheme(next);
+    localStorage.setItem('lingua-theme', next);
+  });
+
   loadHistory();
 </script>
 </body>

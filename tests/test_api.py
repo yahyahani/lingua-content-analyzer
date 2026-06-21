@@ -6,7 +6,7 @@ tests snel en zonder externe dependencies (YouTube, Whisper, Ollama) draaien.
 Voor tests die de echte pipeline aanroepen, zie test_pipeline_integration.py.
 """
 from unittest.mock import patch
-from app.models.schemas import JobStatus
+from app.models.schemas import JobStatus, SummaryLanguage
 
 
 def test_root_endpoint(client):
@@ -30,9 +30,36 @@ def test_analyze_returns_job_id_and_pending_status(client):
     # draait die synchroon na de response, dus we checken dat hij is aangeroepen
     # met de juiste argumenten in plaats van de echte download/transcribe/summarize.
     mock_pipeline.assert_called_once()
-    called_job_id, called_url = mock_pipeline.call_args[0]
+    called_job_id, called_url, called_language = mock_pipeline.call_args[0]
     assert called_job_id == data["job_id"]
     assert called_url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    assert called_language == SummaryLanguage.ENGLISH  # default
+
+
+def test_analyze_accepts_explicit_summary_language(client):
+    with patch("app.main.run_pipeline") as mock_pipeline:
+        response = client.post(
+            "/analyze",
+            json={
+                "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                "summary_language": "fr",
+            },
+        )
+
+    assert response.status_code == 200
+    _, _, called_language = mock_pipeline.call_args[0]
+    assert called_language == SummaryLanguage.FRENCH
+
+
+def test_analyze_rejects_unsupported_summary_language(client):
+    response = client.post(
+        "/analyze",
+        json={
+            "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "summary_language": "ja",  # niet in de ondersteunde lijst
+        },
+    )
+    assert response.status_code == 422
 
 
 def test_analyze_rejects_invalid_url(client):
@@ -145,3 +172,35 @@ def test_jobs_endpoint_respects_limit_param(client):
 def test_cors_headers_present(client):
     response = client.get("/jobs", headers={"Origin": "http://localhost:5500"})
     assert response.headers.get("access-control-allow-origin") == "*"
+
+
+def test_delete_job_removes_it_from_history(client):
+    from app.services import job_store
+
+    job_store.create_job("to-delete", "https://youtube.com/watch?v=del")
+
+    response = client.delete("/jobs/to-delete")
+
+    assert response.status_code == 200
+    assert response.json() == {"job_id": "to-delete", "deleted": True}
+    assert job_store.get_job("to-delete") is None
+
+
+def test_delete_unknown_job_returns_404(client):
+    response = client.delete("/jobs/does-not-exist")
+    assert response.status_code == 404
+
+
+def test_delete_job_removes_audio_file_if_present(client, tmp_path):
+    from app.services import job_store
+
+    audio_file = tmp_path / "fake-audio.mp3"
+    audio_file.write_text("fake audio content")
+
+    job_store.create_job("with-audio", "https://youtube.com/watch?v=audio")
+    job_store.update_job("with-audio", audio_path=str(audio_file))
+
+    response = client.delete("/jobs/with-audio")
+
+    assert response.status_code == 200
+    assert not audio_file.exists()

@@ -1,0 +1,11 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <rect width="64" height="64" rx="14" fill="#332309"/>
+  <!-- Twee tekst-lijnen die in elkaar overvloeien: representeert taal-naar-taal transformatie -->
+  <path d="M14 22 H30" stroke="#FFB22E" stroke-width="3" stroke-linecap="round"/>
+  <path d="M14 32 H26" stroke="#FFB22E" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+  <path d="M34 32 H50" stroke="#FFF6E0" stroke-width="3" stroke-linecap="round"/>
+  <path d="M38 42 H50" stroke="#FFF6E0" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+  <!-- Pijl die de transformatie/vertaling tussen de twee taalblokken aanduidt -->
+  <path d="M28 27 L36 27" stroke="#FFB22E" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M33 24 L36 27 L33 30" stroke="#FFB22E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
