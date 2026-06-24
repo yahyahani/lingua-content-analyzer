@@ -2,7 +2,7 @@ services:
   api:
     build: .
     ports:
-      - "8000:8000"
+      - "8001:8000"
     volumes:
       # Persistente opslag: audio-bestanden en de SQLite-database overleven
       # een container-restart en zijn bereikbaar vanaf de host voor debugging.
